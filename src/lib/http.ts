@@ -30,6 +30,21 @@ export async function requireAdmin(req: Request): Promise<AdminTokenPayload | Ne
   return payload;
 }
 
+/** Идентифицирует клиента из Bearer-токена (18: пользователь из токена, не из query). */
+export function requireClient(req: Request): { userId: string } | NextResponse {
+  const payload = getAdminFromAuthHeader(req.headers.get("authorization"));
+  if (!payload || payload.role !== "client") {
+    return errorResponse("UNAUTHORIZED", "Client authorization required", 401);
+  }
+  return { userId: payload.sub };
+}
+
+/** Необязательная идентификация клиента — вернёт userId или null (для публичных списков). */
+export function optionalClient(req: Request): string | null {
+  const payload = getAdminFromAuthHeader(req.headers.get("authorization"));
+  return payload?.role === "client" ? payload.sub : null;
+}
+
 export async function parseJson<T = unknown>(req: Request): Promise<T | null> {
   try {
     return (await req.json()) as T;

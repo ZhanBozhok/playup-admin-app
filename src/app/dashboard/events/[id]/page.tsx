@@ -26,12 +26,32 @@ type AdminEvent = {
   risk_status: string;
 };
 
+type Participant = {
+  user_id: string;
+  booking_id: string;
+  display_name: string | null;
+  telegram_username: string | null;
+  booking_status: string;
+  attendance_status: string;
+  payment_status: string;
+  payment_amount: number | null;
+};
+
+const ATT_LABEL: Record<string, string> = {
+  unknown: "—",
+  attended: "пришёл",
+  no_show: "no-show",
+  cancelled_before_event: "отменил",
+};
+const PAY_LABEL: Record<string, string> = { unpaid: "не оплачено", paid: "оплачено", refunded: "возврат", waived: "списано" };
+
 const fmt = new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" });
 
 export default function EventDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const [event, setEvent] = useState<AdminEvent | null>(null);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -40,6 +60,10 @@ export default function EventDetailPage() {
     try {
       const { event } = await apiFetch<{ event: AdminEvent }>(`/api/admin/events/${params.id}`);
       setEvent(event);
+      const { participants } = await apiFetch<{ participants: Participant[] }>(
+        `/api/admin/events/${params.id}/participants`,
+      );
+      setParticipants(participants);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ошибка");
     }
@@ -124,9 +148,51 @@ export default function EventDetailPage() {
           Для публикации нужны: название, активность, время, площадка, описание, цена, валюта, вместимость, кворум.
         </p>
       )}
+
+      <h2 style={{ fontSize: 22, margin: "28px 0 12px" }}>
+        Участники <span style={{ color: "var(--color-muted)", fontSize: 16 }}>· {participants.length}</span>
+      </h2>
+      <Card style={{ padding: 0 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }} className="tabular">
+          <thead>
+            <tr style={{ textAlign: "left", color: "var(--color-graphite-600)", background: "var(--color-cream-50)" }}>
+              <th style={cell}>Имя</th>
+              <th style={cell}>Telegram</th>
+              <th style={cell}>Запись</th>
+              <th style={cell}>Явка</th>
+              <th style={cell}>Оплата</th>
+              <th style={cell}>Сумма</th>
+            </tr>
+          </thead>
+          <tbody>
+            {participants.map((p) => (
+              <tr key={p.booking_id} style={{ borderTop: "1px solid var(--color-line)" }}>
+                <td style={cell}>{p.display_name ?? "—"}</td>
+                <td style={cell}>{p.telegram_username ? `@${p.telegram_username}` : "—"}</td>
+                <td style={cell}>{p.booking_status}</td>
+                <td style={cell}>{ATT_LABEL[p.attendance_status] ?? p.attendance_status}</td>
+                <td style={cell}>{PAY_LABEL[p.payment_status] ?? p.payment_status}</td>
+                <td style={cell}>{p.payment_amount != null ? `${p.payment_amount} ${event.currency}` : "—"}</td>
+              </tr>
+            ))}
+            {participants.length === 0 && (
+              <tr>
+                <td style={cell} colSpan={6}>
+                  Пока никто не записан.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </Card>
+      <p style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 12 }}>
+        Отметка явки и оплат появится в Итерации 4.
+      </p>
     </div>
   );
 }
+
+const cell: React.CSSProperties = { padding: "10px 12px" };
 
 function Row({ label, value }: { label: string; value: string }) {
   return (

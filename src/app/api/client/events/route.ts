@@ -2,6 +2,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { serializeEventForClientList } from "@/lib/events";
+import { bookedCountsByEvent, userBookingStatuses } from "@/lib/bookings";
+import { optionalClient } from "@/lib/http";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: Request) {
@@ -10,7 +12,6 @@ export async function GET(req: Request) {
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
 
-  // Клиент видит только published и ещё не завершённые (endsAt в будущем).
   const where: Prisma.EventWhereInput = {
     status: "published",
     endsAt: { gte: from ? new Date(from) : new Date() },
@@ -24,6 +25,12 @@ export async function GET(req: Request) {
     orderBy: { startsAt: "asc" },
   });
 
-  // booked_count и user_booking_status появятся в Итерации 2.
-  return NextResponse.json({ events: events.map((e) => serializeEventForClientList(e, 0, null)) });
+  const ids = events.map((e) => e.id);
+  const counts = await bookedCountsByEvent(ids);
+  const userId = optionalClient(req);
+  const statuses = userId ? await userBookingStatuses(userId, ids) : {};
+
+  return NextResponse.json({
+    events: events.map((e) => serializeEventForClientList(e, counts[e.id] ?? 0, statuses[e.id] ?? null)),
+  });
 }

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireAdmin, parseJson, errorResponse } from "@/lib/http";
 import { serializeEventForAdmin } from "@/lib/events";
+import { bookedCountsByEvent } from "@/lib/bookings";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: Request) {
@@ -33,8 +34,8 @@ export async function GET(req: Request) {
     include: { venue: true, host: true },
     orderBy: { startsAt: "asc" },
   });
-  // booked_count появится в Итерации 2; пока 0.
-  return NextResponse.json({ events: events.map((e) => serializeEventForAdmin(e, 0)) });
+  const counts = await bookedCountsByEvent(events.map((e) => e.id));
+  return NextResponse.json({ events: events.map((e) => serializeEventForAdmin(e, counts[e.id] ?? 0)) });
 }
 
 const CreateEvent = z.object({
