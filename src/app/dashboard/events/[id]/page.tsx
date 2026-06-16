@@ -8,6 +8,7 @@ import { PageHeader, Card, Button, Badge } from "@/components/ui";
 import { ParticipantsManager } from "@/components/participants";
 import { EventExpense } from "@/components/event-expense";
 import { EventNotify } from "@/components/event-notify";
+import { EventSurveys } from "@/components/event-surveys";
 
 type AdminEvent = {
   id: string;
@@ -133,6 +134,7 @@ export default function EventDetailPage() {
       <ParticipantsManager eventId={event.id} price={event.price} currency={event.currency} onChanged={load} />
 
       <EventNotify eventId={event.id} />
+      <EventSurveys eventId={event.id} />
     </div>
   );
 }

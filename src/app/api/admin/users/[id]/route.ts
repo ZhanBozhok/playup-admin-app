@@ -20,11 +20,16 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   });
 
   // явка и оплаты по событиям пользователя
-  const [attendance, payments, notes] = await Promise.all([
+  const [attendance, payments, notes, surveyResponses] = await Promise.all([
     prisma.attendance.findMany({ where: { userId: user.id } }),
     prisma.payment.findMany({ where: { userId: user.id }, include: { event: { select: { title: true } } } }),
     prisma.adminNote.findMany({
       where: { entityType: "user", entityId: user.id },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.surveyResponse.findMany({
+      where: { userId: user.id },
+      include: { survey: { select: { question: true } }, event: { select: { title: true } } },
       orderBy: { createdAt: "desc" },
     }),
   ]);
@@ -75,5 +80,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       paid_at: p.paidAt?.toISOString() ?? null,
     })),
     notes: notes.map((n) => ({ id: n.id, note: n.note, created_at: n.createdAt.toISOString() })),
+    survey_responses: surveyResponses.map((r) => ({
+      question: r.survey.question,
+      event_title: r.event?.title ?? null,
+      answer_value: r.answerValue != null ? Number(r.answerValue) : null,
+      answer_text: r.answerText,
+      created_at: r.createdAt.toISOString(),
+    })),
   });
 }

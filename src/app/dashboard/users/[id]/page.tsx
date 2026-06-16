@@ -39,6 +39,7 @@ type Detail = {
   }[];
   payments: { id: string; event_title: string | null; amount: number; currency: string; status: string }[];
   notes: { id: string; note: string; created_at: string }[];
+  survey_responses: { question: string; event_title: string | null; answer_value: number | null; answer_text: string | null; created_at: string }[];
 };
 
 const fmt = new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium" });
@@ -167,7 +168,19 @@ export default function UserCardPage() {
       )}
 
       {tab === "surveys" && (
-        <Card><p style={{ color: "var(--color-graphite-600)", margin: 0 }}>Ответы на опросы появятся в Итерации 8.</p></Card>
+        <Card>
+          {data.survey_responses.length === 0 && <p style={{ color: "var(--color-graphite-600)", margin: 0 }}>Ответов на опросы нет.</p>}
+          {data.survey_responses.map((r, i) => (
+            <div key={i} style={{ padding: "10px 0", borderBottom: "1px solid var(--color-line)" }}>
+              <div style={{ fontSize: 14 }}>
+                {r.question}
+                {r.answer_value != null ? ` — ${r.answer_value}/5` : ""}
+              </div>
+              {r.answer_text && <div style={{ fontSize: 13, color: "var(--color-graphite-600)", marginTop: 2 }}>«{r.answer_text}»</div>}
+              <div style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 2 }}>{r.event_title ?? ""}</div>
+            </div>
+          ))}
+        </Card>
       )}
 
       {tab === "notes" && <NotesTab id={user.id} notes={data.notes} onAdded={load} />}
