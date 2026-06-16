@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api-client";
 import { PageHeader, Card, Button, Badge } from "@/components/ui";
 import { ParticipantsManager } from "@/components/participants";
 import { EventExpense } from "@/components/event-expense";
+import { EventNotify } from "@/components/event-notify";
 
 type AdminEvent = {
   id: string;
@@ -130,6 +131,8 @@ export default function EventDetailPage() {
 
       <h2 style={{ fontSize: 22, margin: "28px 0 12px" }}>Участники</h2>
       <ParticipantsManager eventId={event.id} price={event.price} currency={event.currency} onChanged={load} />
+
+      <EventNotify eventId={event.id} />
     </div>
   );
 }
