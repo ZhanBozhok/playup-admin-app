@@ -130,7 +130,7 @@ export async function createBooking(
     });
     const payment = await tx.payment.upsert({
       where: { uniq_payment_event_user: { eventId, userId } },
-      update: { status: "unpaid", bookingId: booking.id, amount: event.price, currency: event.currency },
+      update: { status: "unpaid", bookingId: booking.id, amount: event.price, currency: event.currency, paidAt: null, cashboxId: null },
       create: {
         eventId,
         userId,

@@ -14,7 +14,7 @@ const NAV: { label: string; href: string | null }[] = [
   { label: "Финансы", href: "/dashboard/finance" },
   { label: "Пуши и опросы", href: "/dashboard/notifications" },
   { label: "Аналитика", href: "/dashboard/analytics" },
-  { label: "Настройки", href: null },
+  { label: "Настройки", href: "/dashboard/settings" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
