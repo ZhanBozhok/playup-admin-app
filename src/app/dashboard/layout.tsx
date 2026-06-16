@@ -7,7 +7,7 @@ import Link from "next/link";
 // Меню админки — 15_admin_screens_detailed_spec.md. href=null — раздел появится позже.
 const NAV: { label: string; href: string | null }[] = [
   { label: "Главная", href: "/dashboard" },
-  { label: "Пользователи", href: null },
+  { label: "Пользователи", href: "/dashboard/users" },
   { label: "Расписание", href: "/dashboard/schedule" },
   { label: "Площадки", href: "/dashboard/venues" },
   { label: "Хосты", href: "/dashboard/hosts" },
