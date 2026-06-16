@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireAdmin, parseJson, errorResponse } from "@/lib/http";
 import { serializeEventForAdmin } from "@/lib/events";
+import { eventFinance } from "@/lib/payments";
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   const auth = await requireAdmin(req);
@@ -14,7 +15,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   });
   if (!event) return errorResponse("NOT_FOUND", "Event not found", 404);
   const bookedCount = await prisma.booking.count({ where: { eventId: event.id, status: "booked" } });
-  return NextResponse.json({ event: serializeEventForAdmin(event, bookedCount) });
+  const finance = await eventFinance(event.id);
+  return NextResponse.json({ event: serializeEventForAdmin(event, bookedCount), finance });
 }
 
 const PatchEvent = z.object({
