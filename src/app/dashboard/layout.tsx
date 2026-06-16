@@ -1,23 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 
-// Меню админки — 15_admin_screens_detailed_spec.md
-const NAV = [
-  "Главная",
-  "Пользователи",
-  "Расписание",
-  "Площадки",
-  "Хосты",
-  "Финансы",
-  "Пуши и опросы",
-  "Аналитика",
-  "Настройки",
+// Меню админки — 15_admin_screens_detailed_spec.md. href=null — раздел появится позже.
+const NAV: { label: string; href: string | null }[] = [
+  { label: "Главная", href: "/dashboard" },
+  { label: "Пользователи", href: null },
+  { label: "Расписание", href: "/dashboard/schedule" },
+  { label: "Площадки", href: "/dashboard/venues" },
+  { label: "Хосты", href: "/dashboard/hosts" },
+  { label: "Финансы", href: null },
+  { label: "Пуши и опросы", href: null },
+  { label: "Аналитика", href: null },
+  { label: "Настройки", href: null },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [adminName, setAdminName] = useState<string>("");
 
   useEffect(() => {
@@ -40,16 +42,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.replace("/login");
   }
 
+  function isActive(href: string | null): boolean {
+    if (!href) return false;
+    if (href === "/dashboard") return pathname === "/dashboard";
+    return pathname.startsWith(href);
+  }
+
   return (
     <div style={S.shell}>
       <aside style={S.sidebar}>
         <div style={S.brand}>PlayUp</div>
         <nav style={S.nav}>
-          {NAV.map((item, i) => (
-            <a key={item} style={{ ...S.navItem, ...(i === 0 ? S.navItemActive : {}) }} href="#">
-              {item}
-            </a>
-          ))}
+          {NAV.map((item) =>
+            item.href ? (
+              <Link
+                key={item.label}
+                href={item.href}
+                style={{ ...S.navItem, ...(isActive(item.href) ? S.navItemActive : {}) }}
+              >
+                {item.label}
+              </Link>
+            ) : (
+              <span key={item.label} style={{ ...S.navItem, ...S.navItemDisabled }}>
+                {item.label}
+              </span>
+            ),
+          )}
         </nav>
         <button style={S.logout} onClick={logout}>
           Выйти{adminName ? ` · ${adminName}` : ""}
@@ -72,13 +90,9 @@ const S: Record<string, React.CSSProperties> = {
   },
   brand: { fontFamily: "var(--font-heading)", fontSize: 24, fontWeight: 600, padding: "0 var(--space-3)" },
   nav: { display: "flex", flexDirection: "column", gap: "var(--space-1)", flex: 1 },
-  navItem: {
-    padding: "10px 14px",
-    borderRadius: "var(--radius-md)",
-    fontSize: 14,
-    color: "var(--color-cream-200)",
-  },
+  navItem: { padding: "10px 14px", borderRadius: "var(--radius-md)", fontSize: 14, color: "var(--color-cream-200)" },
   navItemActive: { background: "var(--color-green-700)", color: "#fff" },
+  navItemDisabled: { color: "rgba(239,230,214,0.4)", cursor: "default" },
   logout: {
     background: "transparent",
     border: "1px solid var(--color-green-700)",
