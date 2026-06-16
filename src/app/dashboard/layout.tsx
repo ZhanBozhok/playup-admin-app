@@ -11,7 +11,7 @@ const NAV: { label: string; href: string | null }[] = [
   { label: "Расписание", href: "/dashboard/schedule" },
   { label: "Площадки", href: "/dashboard/venues" },
   { label: "Хосты", href: "/dashboard/hosts" },
-  { label: "Финансы", href: null },
+  { label: "Финансы", href: "/dashboard/finance" },
   { label: "Пуши и опросы", href: null },
   { label: "Аналитика", href: null },
   { label: "Настройки", href: null },

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { apiFetch } from "@/lib/api-client";
 import { PageHeader, Card, Button, Badge } from "@/components/ui";
 import { ParticipantsManager } from "@/components/participants";
+import { EventExpense } from "@/components/event-expense";
 
 type AdminEvent = {
   id: string;
@@ -84,13 +85,23 @@ export default function EventDetailPage() {
 
       {/* финансы события */}
       {finance && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 16 }}>
-          <Metric label="Выручка" value={`${finance.revenue} ${event.currency}`} />
-          <Metric label="Расходы" value={`${finance.expenses} ${event.currency}`} />
-          <Metric label="Прибыль" value={`${finance.profit} ${event.currency}`} />
-          <Metric label="Оплатили" value={`${finance.paid_count}`} />
-          <Metric label="Неоплачено" value={`${finance.unpaid_amount} ${event.currency}`} />
-        </div>
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 12 }}>
+            <Metric label="Выручка" value={`${finance.revenue} ${event.currency}`} />
+            <Metric label="Расходы" value={`${finance.expenses} ${event.currency}`} />
+            <Metric label="Прибыль" value={`${finance.profit} ${event.currency}`} />
+            <Metric label="Оплатили" value={`${finance.paid_count}`} />
+            <Metric label="Неоплачено" value={`${finance.unpaid_amount} ${event.currency}`} />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <EventExpense
+              eventId={event.id}
+              venueId={event.venue?.id ?? null}
+              hostId={event.host?.id ?? null}
+              onSaved={load}
+            />
+          </div>
+        </>
       )}
 
       <Card style={{ marginBottom: 16 }}>
