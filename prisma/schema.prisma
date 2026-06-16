@@ -1,0 +1,387 @@
+// PlayUp database schema — источник правды: docs/14_database_schema_mvp.md
+// Имена таблиц/колонок в snake_case (через @map/@@map), чтобы БД совпадала с докой.
+// Партиальный unique для bookings и CHECK-констрейнты — в prisma/sql/extra_constraints.sql
+// (Prisma не выражает их в schema).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String   @unique
+  passwordHash String?  @map("password_hash")
+  name         String
+  role         String   @default("admin") // owner | admin | viewer
+  status       String   @default("active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdEvents       Event[]        @relation("EventCreatedBy")
+  createdBookings     Booking[]      @relation("BookingCreatedBy")
+  markedAttendance    Attendance[]   @relation("AttendanceMarkedBy")
+  markedPayments      Payment[]      @relation("PaymentMarkedBy")
+  createdTransactions Transaction[]  @relation("TransactionCreatedBy")
+  createdNotifications Notification[] @relation("NotificationCreatedBy")
+  createdSurveys      Survey[]       @relation("SurveyCreatedBy")
+  adminNotes          AdminNote[]    @relation("AdminNoteCreatedBy")
+
+  @@map("admin_users")
+}
+
+model User {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  telegramId       String?   @unique @map("telegram_id")
+  telegramUsername String?   @map("telegram_username")
+  status           String    @default("new") // new | active | sleeping | blocked
+  firstSeenAt      DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt       DateTime? @map("last_seen_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profile          UserProfile?
+  bookings         Booking[]
+  attendance       Attendance[]
+  payments         Payment[]
+  transactions     Transaction[]
+  surveyResponses  SurveyResponse[]
+  notificationRecipients NotificationRecipient[]
+
+  @@index([telegramUsername])
+  @@index([status])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model UserProfile {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String    @unique @map("user_id") @db.Uuid
+  displayName        String?   @map("display_name")
+  phone              String?
+  preferredSports    String[]  @default([]) @map("preferred_sports")
+  level              String?
+  preferredArea      String?   @map("preferred_area")
+  availableTimes     String[]  @default([]) @map("available_times")
+  trafficSource      String?   @map("traffic_source")
+  notes              String?
+  profileCompletedAt DateTime? @map("profile_completed_at") @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("user_profiles")
+}
+
+model Venue {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String
+  address         String?
+  mapUrl          String?  @map("map_url")
+  contactName     String?  @map("contact_name")
+  contactPhone    String?  @map("contact_phone")
+  contactTelegram String?  @map("contact_telegram")
+  defaultCost     Decimal? @map("default_cost") @db.Decimal(12, 2)
+  currency        String   @default("RSD")
+  status          String   @default("active")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  events       Event[]
+  transactions Transaction[]
+
+  @@map("venues")
+}
+
+model Host {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String
+  telegramUsername String?  @map("telegram_username")
+  phone            String?
+  defaultFee       Decimal? @map("default_fee") @db.Decimal(12, 2)
+  currency         String   @default("RSD")
+  status           String   @default("active")
+  notes            String?
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  events       Event[]
+  transactions Transaction[]
+
+  @@map("hosts")
+}
+
+model Event {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title              String
+  activityType       String    @map("activity_type")
+  description        String?
+  startsAt           DateTime  @map("starts_at") @db.Timestamptz(6)
+  endsAt             DateTime  @map("ends_at") @db.Timestamptz(6)
+  venueId            String?   @map("venue_id") @db.Uuid
+  hostId             String?   @map("host_id") @db.Uuid
+  price              Decimal   @default(0) @db.Decimal(12, 2)
+  currency           String    @default("RSD")
+  capacity           Int
+  minQuorum          Int?      @map("min_quorum")
+  level              String?
+  status             String    @default("draft") // draft | published | cancelled | completed
+  publishedAt        DateTime? @map("published_at") @db.Timestamptz(6)
+  cancelledAt        DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancellationReason String?   @map("cancellation_reason")
+  completedAt        DateTime? @map("completed_at") @db.Timestamptz(6)
+  internalNotes      String?   @map("internal_notes")
+  createdByAdminId   String?   @map("created_by_admin_id") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  venue          Venue?         @relation(fields: [venueId], references: [id])
+  host           Host?          @relation(fields: [hostId], references: [id])
+  createdByAdmin AdminUser?     @relation("EventCreatedBy", fields: [createdByAdminId], references: [id])
+  bookings       Booking[]
+  attendance     Attendance[]
+  payments       Payment[]
+  transactions   Transaction[]
+  notifications  Notification[]
+  surveys        Survey[]
+  surveyResponses SurveyResponse[]
+
+  @@index([startsAt])
+  @@index([status])
+  @@index([activityType])
+  @@index([venueId])
+  @@index([hostId])
+  @@map("events")
+}
+
+model Booking {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId          String    @map("event_id") @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  status           String    @default("booked") // booked | cancelled | waitlisted | admin_removed
+  source           String    @default("client_app")
+  cancelledAt      DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason     String?   @map("cancel_reason")
+  createdByAdminId String?   @map("created_by_admin_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  event          Event        @relation(fields: [eventId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+  createdByAdmin AdminUser?   @relation("BookingCreatedBy", fields: [createdByAdminId], references: [id])
+  attendance     Attendance[]
+  payments       Payment[]
+
+  @@index([eventId])
+  @@index([userId])
+  @@index([status])
+  @@map("bookings")
+}
+
+model Attendance {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId         String    @map("event_id") @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  bookingId       String?   @map("booking_id") @db.Uuid
+  status          String    @default("unknown") // unknown | attended | no_show | cancelled_before_event
+  markedByAdminId String?   @map("marked_by_admin_id") @db.Uuid
+  markedAt        DateTime? @map("marked_at") @db.Timestamptz(6)
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  event         Event      @relation(fields: [eventId], references: [id])
+  user          User       @relation(fields: [userId], references: [id])
+  booking       Booking?   @relation(fields: [bookingId], references: [id])
+  markedByAdmin AdminUser? @relation("AttendanceMarkedBy", fields: [markedByAdminId], references: [id])
+
+  @@unique([eventId, userId], name: "uniq_attendance_event_user")
+  @@map("attendance")
+}
+
+model Cashbox {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  type      String // cash | bank | crypto | other
+  currency  String   @default("RSD")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  payments     Payment[]
+  transactions Transaction[]
+
+  @@map("cashboxes")
+}
+
+model FinanceCategory {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  type      String // income | expense
+  parentId  String?  @map("parent_id") @db.Uuid
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  parent       FinanceCategory?  @relation("CategoryParent", fields: [parentId], references: [id])
+  children     FinanceCategory[] @relation("CategoryParent")
+  transactions Transaction[]
+
+  @@map("finance_categories")
+}
+
+model Payment {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventId         String    @map("event_id") @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  bookingId       String?   @map("booking_id") @db.Uuid
+  amount          Decimal   @default(0) @db.Decimal(12, 2)
+  currency        String    @default("RSD")
+  status          String    @default("unpaid") // unpaid | paid | refunded | waived
+  cashboxId       String?   @map("cashbox_id") @db.Uuid
+  paidAt          DateTime? @map("paid_at") @db.Timestamptz(6)
+  markedByAdminId String?   @map("marked_by_admin_id") @db.Uuid
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  event         Event         @relation(fields: [eventId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
+  booking       Booking?      @relation(fields: [bookingId], references: [id])
+  cashbox       Cashbox?      @relation(fields: [cashboxId], references: [id])
+  markedByAdmin AdminUser?    @relation("PaymentMarkedBy", fields: [markedByAdminId], references: [id])
+  transactions  Transaction[]
+
+  @@unique([eventId, userId], name: "uniq_payment_event_user")
+  @@map("payments")
+}
+
+model Transaction {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type             String // income | expense | transfer
+  amount           Decimal  @db.Decimal(12, 2)
+  currency         String   @default("RSD")
+  cashboxId        String?  @map("cashbox_id") @db.Uuid
+  categoryId       String?  @map("category_id") @db.Uuid
+  eventId          String?  @map("event_id") @db.Uuid
+  venueId          String?  @map("venue_id") @db.Uuid
+  hostId           String?  @map("host_id") @db.Uuid
+  userId           String?  @map("user_id") @db.Uuid
+  paymentId        String?  @map("payment_id") @db.Uuid
+  description      String?
+  transactionDate  DateTime @default(now()) @map("transaction_date") @db.Date
+  createdByAdminId String?  @map("created_by_admin_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  cashbox        Cashbox?         @relation(fields: [cashboxId], references: [id])
+  category       FinanceCategory? @relation(fields: [categoryId], references: [id])
+  event          Event?           @relation(fields: [eventId], references: [id])
+  venue          Venue?           @relation(fields: [venueId], references: [id])
+  host           Host?            @relation(fields: [hostId], references: [id])
+  user           User?            @relation(fields: [userId], references: [id])
+  payment        Payment?         @relation(fields: [paymentId], references: [id])
+  createdByAdmin AdminUser?       @relation("TransactionCreatedBy", fields: [createdByAdminId], references: [id])
+
+  @@index([type])
+  @@index([transactionDate])
+  @@index([cashboxId])
+  @@index([eventId])
+  @@map("transactions")
+}
+
+model Notification {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type             String // manual | event_reminder_24h | event_reminder_3h | post_event_survey | reactivation
+  status           String    @default("draft") // draft | scheduled | sending | sent | failed | cancelled
+  targetType       String    @map("target_type")
+  targetFilter     Json?     @map("target_filter")
+  eventId          String?   @map("event_id") @db.Uuid
+  title            String?
+  message          String
+  scheduledAt      DateTime? @map("scheduled_at") @db.Timestamptz(6)
+  sentAt           DateTime? @map("sent_at") @db.Timestamptz(6)
+  createdByAdminId String?   @map("created_by_admin_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  event          Event?                  @relation(fields: [eventId], references: [id])
+  createdByAdmin AdminUser?              @relation("NotificationCreatedBy", fields: [createdByAdminId], references: [id])
+  recipients     NotificationRecipient[]
+
+  @@map("notifications")
+}
+
+model NotificationRecipient {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  notificationId String    @map("notification_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  status         String    @default("pending")
+  sentAt         DateTime? @map("sent_at") @db.Timestamptz(6)
+  failedAt       DateTime? @map("failed_at") @db.Timestamptz(6)
+  errorMessage   String?   @map("error_message")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  notification Notification @relation(fields: [notificationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@unique([notificationId, userId], name: "uniq_notification_user")
+  @@map("notification_recipients")
+}
+
+model Survey {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title            String
+  question         String
+  answerType       String   @map("answer_type") // rating_1_5 | rating_1_10 | text | single_choice
+  eventId          String?  @map("event_id") @db.Uuid
+  options          Json?
+  isActive         Boolean  @default(true) @map("is_active")
+  createdByAdminId String?  @map("created_by_admin_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  event          Event?           @relation(fields: [eventId], references: [id])
+  createdByAdmin AdminUser?       @relation("SurveyCreatedBy", fields: [createdByAdminId], references: [id])
+  responses      SurveyResponse[]
+
+  @@map("surveys")
+}
+
+model SurveyResponse {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  surveyId    String   @map("survey_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  eventId     String?  @map("event_id") @db.Uuid
+  answerValue Decimal? @map("answer_value") @db.Decimal(12, 2)
+  answerText  String?  @map("answer_text")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  survey Survey @relation(fields: [surveyId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+  event  Event? @relation(fields: [eventId], references: [id])
+
+  @@unique([surveyId, userId], name: "uniq_survey_response_user")
+  @@map("survey_responses")
+}
+
+model AdminNote {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entityType       String   @map("entity_type")
+  entityId         String   @map("entity_id") @db.Uuid
+  note             String
+  createdByAdminId String?  @map("created_by_admin_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdByAdmin AdminUser? @relation("AdminNoteCreatedBy", fields: [createdByAdminId], references: [id])
+
+  @@map("admin_notes")
+}

@@ -1,0 +1,63 @@
+/* PlayUp design tokens — источник: 25_playup_design_system_style.md */
+:root {
+  --color-green-900: #123226;
+  --color-green-800: #173d2d;
+  --color-green-700: #1f4a36;
+
+  --color-cream-50: #f7f2e8;
+  --color-cream-100: #efe6d6;
+  --color-cream-200: #e5dac8;
+
+  --color-tobacco-600: #9a6a3a;
+  --color-sand-400: #c8ad7f;
+  --color-olive-600: #6f7654;
+
+  --color-graphite-900: #1f2320;
+  --color-graphite-700: #3b403a;
+  --color-graphite-600: #5e625c;
+  --color-muted: #8a857b;
+  --color-line: #ded4c2;
+
+  --color-success: #2f6b4f;
+  --color-warning: #b98238;
+  --color-danger: #9a3f32;
+
+  --font-heading: "Cormorant Garamond", "Lora", Georgia, serif;
+  --font-body: "Inter", "Manrope", -apple-system, system-ui, sans-serif;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+
+  --shadow-soft: 0 12px 40px rgba(31, 35, 32, 0.08);
+  --shadow-card: 0 8px 24px rgba(31, 35, 32, 0.06);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-cream-50);
+  color: var(--color-graphite-900);
+  font-family: var(--font-body);
+  font-size: 14px; /* admin body, 25 */
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { font-family: var(--font-heading); font-weight: 600; letter-spacing: 0.2px; }
+
+a { color: inherit; text-decoration: none; }
+
+/* числа в админке — табличные (25) */
+.tabular { font-variant-numeric: tabular-nums; }

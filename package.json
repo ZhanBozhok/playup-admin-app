@@ -1,0 +1,39 @@
+{
+  "name": "playup-admin-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PlayUp admin app + shared backend API (Iteration 0 — foundations)",
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "db:push": "prisma db push",
+    "db:constraints": "psql \"$DATABASE_URL\" -f prisma/sql/extra_constraints.sql",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:setup": "prisma db push && npm run db:constraints && npm run db:seed"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "next": "^14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "prisma": "^5.22.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.5.4"
+  }
+}
