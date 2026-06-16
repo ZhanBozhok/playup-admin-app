@@ -14,8 +14,13 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: { code: "NOT_FOUND", message: "User" } }, { status: 404 });
 
   const now = new Date();
+  // Ближайшие записи: published + cancelled (17 Flow 7 — показать отмену записанному).
   const bookings = await prisma.booking.findMany({
-    where: { userId: auth.userId, status: "booked", event: { endsAt: { gte: now }, status: "published" } },
+    where: {
+      userId: auth.userId,
+      status: "booked",
+      event: { endsAt: { gte: now }, status: { in: ["published", "cancelled"] } },
+    },
     include: { event: { include: { venue: true } } },
     orderBy: { event: { startsAt: "asc" } },
   });

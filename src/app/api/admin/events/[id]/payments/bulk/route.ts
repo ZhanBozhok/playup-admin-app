@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin, parseJson, errorResponse } from "@/lib/http";
-import { setPaymentsBulk } from "@/lib/payments";
+import { setPaymentsBulk, PaymentError } from "@/lib/payments";
 
 const Body = z.object({
   items: z
@@ -23,6 +23,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (auth instanceof NextResponse) return auth;
   const body = Body.safeParse(await parseJson(req));
   if (!body.success) return errorResponse("VALIDATION_ERROR", "items required", 400, body.error.flatten());
-  await setPaymentsBulk(params.id, body.data.items, auth.sub);
+  try {
+    await setPaymentsBulk(params.id, body.data.items, auth.sub);
+  } catch (e) {
+    if (e instanceof PaymentError) return errorResponse(e.code as never, e.message, e.status);
+    throw e;
+  }
   return NextResponse.json({ ok: true });
 }

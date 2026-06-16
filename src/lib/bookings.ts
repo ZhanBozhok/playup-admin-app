@@ -128,7 +128,7 @@ export async function createBooking(
       update: { status: "unknown", bookingId: booking.id },
       create: { eventId, userId, bookingId: booking.id, status: "unknown" },
     });
-    await tx.payment.upsert({
+    const payment = await tx.payment.upsert({
       where: { uniq_payment_event_user: { eventId, userId } },
       update: { status: "unpaid", bookingId: booking.id, amount: event.price, currency: event.currency },
       create: {
@@ -141,12 +141,16 @@ export async function createBooking(
       },
     });
 
+    // Перезапись после оплаты+отмены: payment сброшен в unpaid — снимаем устаревшую
+    // income-транзакцию, иначе revenue будет учитывать оплату отменённого участия.
+    await tx.transaction.deleteMany({ where: { paymentId: payment.id, type: "income" } });
+
     const newCount = bookedCount + 1;
     return {
       booking,
       spotsLeft: Math.max(0, event.capacity - newCount),
     };
-  });
+  }, { isolationLevel: "Serializable" }); // Fix: не переполнять capacity при гонке записей
 }
 
 /** Отмена записи пользователем (17 Flow 5). Booking->cancelled, Attendance->cancelled_before_event. */

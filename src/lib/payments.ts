@@ -5,6 +5,21 @@ import type { Prisma } from "@prisma/client";
 export const ATTENDANCE_STATUSES = ["unknown", "attended", "no_show", "cancelled_before_event"];
 export const PAYMENT_STATUSES = ["unpaid", "paid", "refunded", "waived"];
 
+export class PaymentError extends Error {
+  constructor(public code: string, message: string, public status = 400) {
+    super(message);
+  }
+}
+
+// Карта user_id -> активный booking для события (участник только через Booking).
+async function activeBookingMap(eventId: string, userIds: string[]) {
+  const bookings = await prisma.booking.findMany({
+    where: { eventId, userId: { in: userIds }, status: "booked" },
+    select: { id: true, userId: true },
+  });
+  return new Map(bookings.map((b) => [b.userId, b.id]));
+}
+
 // Категория дохода "Event payment" (14/23) — кэшируем поиск/создание.
 async function eventPaymentCategoryId(tx: Prisma.TransactionClient): Promise<string> {
   const existing = await tx.financeCategory.findFirst({ where: { name: "Event payment", type: "income" } });
@@ -14,18 +29,32 @@ async function eventPaymentCategoryId(tx: Prisma.TransactionClient): Promise<str
 }
 
 // Bulk-отметка явки (Flow 9). items: [{ user_id, status }].
+// Отмечать можно только участников с активным Booking (инвариант: участник через Booking).
 export async function setAttendanceBulk(
   eventId: string,
   items: { user_id: string; status: string }[],
   adminId: string,
 ) {
   const now = new Date();
+  const bookingByUser = await activeBookingMap(eventId, items.map((i) => i.user_id));
+
   for (const it of items) {
-    if (!ATTENDANCE_STATUSES.includes(it.status)) continue;
+    if (!ATTENDANCE_STATUSES.includes(it.status)) throw new PaymentError("VALIDATION_ERROR", `Bad attendance status: ${it.status}`);
+    if (!bookingByUser.has(it.user_id)) throw new PaymentError("VALIDATION_ERROR", "User has no active booking on this event");
+  }
+
+  for (const it of items) {
     await prisma.attendance.upsert({
       where: { uniq_attendance_event_user: { eventId, userId: it.user_id } },
-      update: { status: it.status, markedByAdminId: adminId, markedAt: now },
-      create: { eventId, userId: it.user_id, status: it.status, markedByAdminId: adminId, markedAt: now },
+      update: { status: it.status, markedByAdminId: adminId, markedAt: now, bookingId: bookingByUser.get(it.user_id) },
+      create: {
+        eventId,
+        userId: it.user_id,
+        bookingId: bookingByUser.get(it.user_id),
+        status: it.status,
+        markedByAdminId: adminId,
+        markedAt: now,
+      },
     });
   }
 }
@@ -45,11 +74,24 @@ type PaymentItem = {
  */
 export async function setPaymentsBulk(eventId: string, items: PaymentItem[], adminId: string) {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
-  if (!event) throw new Error("Event not found");
+  if (!event) throw new PaymentError("NOT_FOUND", "Event not found", 404);
+
+  const bookingByUser = await activeBookingMap(eventId, items.map((i) => i.user_id));
+
+  // Валидация до применения: статус, активный booking, касса для paid (19/22).
+  for (const it of items) {
+    if (!PAYMENT_STATUSES.includes(it.status)) throw new PaymentError("VALIDATION_ERROR", `Bad payment status: ${it.status}`);
+    if (!bookingByUser.has(it.user_id)) throw new PaymentError("VALIDATION_ERROR", "User has no active booking on this event");
+    if (it.status === "paid") {
+      const existing = await prisma.payment.findUnique({
+        where: { uniq_payment_event_user: { eventId, userId: it.user_id } },
+      });
+      const cashbox = it.cashbox_id ?? existing?.cashboxId ?? null;
+      if (!cashbox) throw new PaymentError("VALIDATION_ERROR", "paid payment requires cashbox");
+    }
+  }
 
   for (const it of items) {
-    if (!PAYMENT_STATUSES.includes(it.status)) continue;
-
     await prisma.$transaction(async (tx) => {
       const existing = await tx.payment.findUnique({
         where: { uniq_payment_event_user: { eventId, userId: it.user_id } },
@@ -63,6 +105,7 @@ export async function setPaymentsBulk(eventId: string, items: PaymentItem[], adm
           status: it.status,
           amount,
           currency: event.currency,
+          bookingId: bookingByUser.get(it.user_id),
           cashboxId: it.cashbox_id ?? existing?.cashboxId ?? null,
           paidAt,
           markedByAdminId: adminId,
@@ -71,6 +114,7 @@ export async function setPaymentsBulk(eventId: string, items: PaymentItem[], adm
         create: {
           eventId,
           userId: it.user_id,
+          bookingId: bookingByUser.get(it.user_id),
           status: it.status,
           amount,
           currency: event.currency,
